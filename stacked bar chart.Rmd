@@ -1,0 +1,222 @@
+---
+title: "Agents Fundraising"
+output: html_notebook
+---
+
+Examining trends in agent fund raising for miners. 
+
+Using data pulled on Mar 26 2018 from Mining Intelligence
+
+```{r}
+library(tidyverse)
+rawagents <- read_csv("C:/Users/Admin/Downloads/companies-capitalraisings-report-michael-mccrae-20180326135102.csv")
+rawagents
+```
+
+
+Next, separate the StartDate and ClosedDate into separate month, date and year
+
+```{r}
+rawagents_date <- rawagents %>% separate(col=StartDate,into=c(data="StartDateMonth", "StartDateDate", "StartDateYear"),sep=c("\\s","\\s"), remove="FALSE", convert="TRUE") %>% separate(col=ClosedDate,into=c(data="ClosedDateMonth", "ClosedDateDate", "ClosedDateYear"),sep=c("\\s","\\s"), remove="FALSE", convert="TRUE")
+
+rawagents_date
+
+```
+
+
+
+
+
+Let's select some of the useful columns
+
+
+```{r}
+usefulvar_rawagents <- rawagents_date %>% select(Agents, FinalAmountUSD, ClosedDateMonth, ClosedDateYear, Company)
+usefulvar_rawagents
+
+```
+
+Let's check all the companies in descending order. Do we have some oil sands in there? Let's get rid of since it skews the results.
+
+```{r}
+
+company_financing_total <- usefulvar_rawagents %>% filter(ClosedDateYear==2017) %>% group_by(Company) %>% summarise(n=sum(FinalAmountUSD)) %>% arrange(desc(n)) 
+company_financing_total
+
+
+```
+
+ 
+
+Let's just look at 2017 and summarise Agents by total funds raised.
+
+We will also filter out Cenovus. 
+
+
+
+```{r}
+
+agents_financings_total <- usefulvar_rawagents %>% filter(ClosedDateYear==2017) %>% filter(Company!="Cenovus Energy Inc.") %>% group_by(Agents) %>% summarise(n=sum(FinalAmountUSD)) %>% arrange(desc(n)) 
+agents_financings_total
+
+```
+
+
+Add levels to ClosedDateMonth
+
+```{r}
+
+usefulvar_rawagents$ClosedDateMonth <-factor(usefulvar_rawagents$ClosedDateMonth, levels=c("Jan", "Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
+
+```
+
+
+
+
+So what is the brokered vs. non-brokered monthly totals in 2017? 
+
+```{r}
+
+nonbrokered_monthly_totals <- usefulvar_rawagents %>% filter(ClosedDateYear==2017) %>% filter(Agents=="Non-brokered") %>% group_by(ClosedDateMonth) %>% summarise(nonbrokered_sum=sum(FinalAmountUSD,na.rm = TRUE)) 
+nonbrokered_monthly_totals
+
+brokered_monthly_totals <- usefulvar_rawagents %>% filter(ClosedDateYear==2017) %>% filter(Agents!="Non-brokered") %>% group_by(ClosedDateMonth) %>% summarise(brokered_sum=sum(FinalAmountUSD,na.rm = TRUE)) 
+brokered_monthly_totals
+
+```
+
+
+
+
+
+Make data frame to plot brokered and non-brokered. 
+
+First, create new variable "Type" with designation "Non-Brokered" and "Brokered"
+
+
+```{r}
+
+Type1=rep("Non-Brokered",12)
+Type2=rep("Brokered",12)
+Type=c(Type1,Type2)
+Type
+
+```
+
+
+
+Next, revise Brokered variables so there are match 12 values. Same with Non-Brokered. 
+
+```{r}
+
+#NA_twelve_times<- c("NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA")
+
+
+#Brokered_Match_Variables <- c(NA_twelve_times,brokered_monthly_totals$brokered_sum)
+
+#Brokered_Match_Variables
+
+Brokered_Non_Brokered_Together <-append(brokered_monthly_totals$brokered_sum,nonbrokered_monthly_totals$nonbrokered_sum)
+
+Brokered_Non_Brokered_Together
+
+#Non_Brokered_Match_Variables <- c(nonbrokered_monthly_totals$nonbrokered_sum, NA_twelve_times)
+
+#Non_Brokered_Match_Variables
+
+#list_b_nb<-list(c(brokered_monthly_totals$ClosedDateMonth,Brokered_Match_Variables,Non_Brokered_Match_Variables,Type))
+
+#list_b_nb
+
+
+
+
+x <-c("Month","Value","Type")
+x
+
+brokered_nonbrokered_comparison <-data.frame(brokered_monthly_totals$ClosedDateMonth,Brokered_Non_Brokered_Together,Type)
+
+brokered_nonbrokered_comparison <-setNames(brokered_nonbrokered_comparison,x)
+
+brokered_nonbrokered_comparison
+```
+
+
+
+
+Plot brokered and non-brokered
+
+```{r}
+
+
+ggplot(data=brokered_nonbrokered_comparison, mapping=aes(x=Month, y=Value, fill=Type))+
+  geom_bar(stat="identity") +
+  #geom_label(aes(y=Brokered_Non_Brokered_Together), stat="identity") +
+  #coord_flip() +
+  theme_minimal()
+
+
+```
+
+
+
+
+
+Plot non-brokered
+
+```{r}
+ggplot(data=nonbrokered_monthly_totals, mapping=aes(x=ClosedDateMonth, y=nonbrokered_sum))+
+  geom_bar(stat="identity") +
+  #geom_text(aes(label=nonbrokered_sum)) +
+  #coord_flip() +
+  theme_minimal() +
+   #scale_y_continuous(labels = comma) +
+ ggtitle("Total Non-Brokered Financings in 2017") +
+  xlab("")+
+  ylab("")
+
+```
+
+
+
+Plot brokered 
+
+```{r}
+
+ggplot(data=brokered_monthly_totals, mapping=aes(x=ClosedDateMonth, y=brokered_sum))+
+  geom_bar(stat="identity") +
+  #geom_text(aes(label=brokered_sum)) +
+  theme_minimal() +
+  #scale_y_continuous(labels = comma) +
+  ggtitle("Total Brokered Financings in 2017") +
+  xlab("")+
+  ylab("")
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+////////////////
+
+
+The Agents variable has multiple observations. Split and give each its own line.This command is in the shop while I check how it is dividing lines.
+
+
+```{r}
+
+#rawagents_split <-separate_rows(rawagents,Agents,sep="\\|")
+#rawagents_split
+```
+
+

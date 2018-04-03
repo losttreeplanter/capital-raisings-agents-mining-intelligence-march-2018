@@ -1,0 +1,132 @@
+---
+title: "Agents Fundraising"
+output: html_notebook
+---
+
+Examining trends in agent fund raising for miners. 
+
+Using data pulled on Mar 26 2018 from Mining Intelligence
+
+```{r}
+
+library(tidyverse)
+
+rawagents <- read_csv("C:/Users/Admin/Downloads/companies-capitalraisings-report-michael-mccrae-20180326135102-specialcharactersrem_delcol_remCRD.csv")
+View(rawagents)
+
+
+```
+
+
+
+
+Next, separate the StartDate and ClosedDate into separate month, date and year
+
+```{r}
+
+
+rawagents_date <- rawagents %>% separate(col=StartDate,into=c(data="StartDateMonth", "StartDateDate", "StartDateYear"),sep=c("\\s","\\s"), remove="FALSE", convert="TRUE") %>% separate(col=ClosedDate,into=c(data="ClosedDateMonth", "ClosedDateDate", "ClosedDateYear"),sep=c("\\s","\\s"), remove="FALSE", convert="TRUE")
+
+head(rawagents_date)
+
+
+
+```
+
+
+
+Let's select some of the useful columns
+
+
+```{r}
+usefulvar_rawagents <- rawagents_date %>% select(Agents, FinalAmountUSD, ClosedDateMonth, ClosedDateYear, Company)
+head(usefulvar_rawagents)
+
+
+```
+
+
+
+Add a column from Agent that has three variables. I am using case_when: 
+
+Brokered
+Non-brokered
+Not available
+
+```{r}
+
+
+library(stringr)
+agents_b_nb_variable <- usefulvar_rawagents %>% mutate(brokered_nonbrokered=case_when(
+  Agents=="Non-brokered" ~ "Non-brokered",
+  Agents!= str_detect(Agents,"[a-z]") ~ "Brokered",
+  TRUE ~ "Not Available"))
+head(agents_b_nb_variable)
+
+
+```
+
+
+Do we have some oil sands in there? Let's get rid of since it skews the results.
+
+
+```{r}
+
+agents_three <- agents_b_nb_variable %>% filter(Company!="Cenovus Energy Inc.") 
+agents_three
+
+head(agents_three)
+
+
+
+```
+
+
+Set ClosedYearDate as a factor
+
+```{r}
+
+agents_three$ClosedDateYear <- as.factor(agents_three$ClosedDateYear)
+
+str(agents_three)
+
+```
+
+
+
+
+Let's compare brokered, non-brokered totals 2016 vs. 2017
+
+
+```{r}
+
+agents_four<-agents_three %>% summarize(Sum_FinalAmountUSD=mean(FinalAmountUSD, na.rm=TRUE)) 
+
+
+agents_four
+
+?format()
+
+
+```
+
+
+
+
+
+
+
+Let's plot by year, brokered vs. nonbrokered.
+
+
+```{r}
+
+ggplot(agents_four, aes(x=ClosedDateYear, y=Sum_FinalAmountUSD, fill=brokered_nonbrokered)) +
+  geom_bar(stat="identity") +
+  geom_text(aes(label=Sum_FinalAmountUSD))
+
+
+```
+
+
+
